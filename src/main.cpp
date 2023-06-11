@@ -1,89 +1,113 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include <SPI.h>               // Built-in 
-#include "EPD_WaveShare.h"     // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "EPD_WaveShare_42.h"  // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "MiniGrafx.h"         // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "DisplayDriver.h"     // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "qrcode.h"            // Copyright (c) //https://github.com/ricmoo/qrcode/
+//#include <Wire.h>
+#include "bsec.h"
 
-#define SCREEN_WIDTH  400.0    // Set for landscape mode, don't remove the decimal place!
-#define SCREEN_HEIGHT 300.0
-#define BITS_PER_PIXEL 1
-#define EPD_BLACK 0
-#define EPD_WHITE 1
-uint16_t palette[] = { 0, 1 };
+// Helper functions declarations
+void checkIaqSensorStatus(void);
+void errLeds(void);
 
-// pins_arduino.h, e.g. LOLIN32 D322
-static const uint8_t EPD_BUSY = 34;
-static const uint8_t EPD_SS   = 5;
-static const uint8_t EPD_RST  = 33;
-static const uint8_t EPD_DC   = 32;
-static const uint8_t EPD_SCK  = 18;
-static const uint8_t EPD_MISO = 19; // Master-In Slave-Out not used, as no data from display
-static const uint8_t EPD_MOSI = 23;
+// Create an object of the class Bsec
+Bsec iaqSensor;
 
-EPD_WaveShare42 epd(EPD_SS, EPD_RST, EPD_DC, EPD_BUSY);
-MiniGrafx gfx = MiniGrafx(&epd, BITS_PER_PIXEL, palette);
+String output;
 
+// Entry point for the example
+void setup(void)
+{
+  /* Initializes the Serial communication */
+  Serial.begin(115200);
+  delay(1000);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  iaqSensor.begin(BME68X_I2C_ADDR_LOW, Wire);
+  output = "\nBSEC library version " + String(iaqSensor.version.major) + "." + String(iaqSensor.version.minor) + "." + String(iaqSensor.version.major_bugfix) + "." + String(iaqSensor.version.minor_bugfix);
+  Serial.println(output);
+  checkIaqSensorStatus();
 
-QRCode qrcode;
+  bsec_virtual_sensor_t sensorList[13] = {
+    BSEC_OUTPUT_IAQ,
+    BSEC_OUTPUT_STATIC_IAQ,
+    BSEC_OUTPUT_CO2_EQUIVALENT,
+    BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+    BSEC_OUTPUT_RAW_TEMPERATURE,
+    BSEC_OUTPUT_RAW_PRESSURE,
+    BSEC_OUTPUT_RAW_HUMIDITY,
+    BSEC_OUTPUT_RAW_GAS,
+    BSEC_OUTPUT_STABILIZATION_STATUS,
+    BSEC_OUTPUT_RUN_IN_STATUS,
+    BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+    BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+    BSEC_OUTPUT_GAS_PERCENTAGE
+  };
 
+  iaqSensor.updateSubscription(sensorList, 13, BSEC_SAMPLE_RATE_LP);
+  checkIaqSensorStatus();
 
-//#########################################################################################
-void Display_QRcode(int offset_x, int offset_y, int element_size, int QRsize, int ECC_Mode, const char* Message){
-  // QRcode capacity examples Size-12  65 x 65 LOW      883 535 367 
-  //                                           MEDIUM   691 419 287 
-  //                                           QUARTILE 489 296 203 
-  //                                           HIGH     374 227 155 
-  uint8_t qrcodeData[qrcode_getBufferSize(QRsize)];
-  //ECC_LOW, ECC_MEDIUM, ECC_QUARTILE and ECC_HIGH. Higher levels of error correction sacrifice data capacity, but ensure damaged codes remain readable.
-  if (ECC_Mode%4 == 0) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_LOW, Message);
-  if (ECC_Mode%4 == 1) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_MEDIUM, Message);
-  if (ECC_Mode%4 == 2) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_QUARTILE, Message);
-  if (ECC_Mode%4 == 3) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_HIGH, Message);
-  for (int y = 0; y < qrcode.size; y++) {
-    for (int x = 0; x < qrcode.size; x++) {
-      if (qrcode_getModule(&qrcode, x, y)) {
-        gfx.setColor(EPD_BLACK);
-        gfx.fillRect(x*element_size+offset_x,y*element_size+offset_y,element_size,element_size);
-        
-      }
-      else 
-      {
-        gfx.setColor(EPD_WHITE);
-        gfx.fillRect(x*element_size+offset_x,y*element_size+offset_y,element_size,element_size);
-      }
+  // Print the header
+  output = "Timestamp [ms], IAQ, IAQ accuracy, Static IAQ, CO2 equivalent, breath VOC equivalent, raw temp[°C], pressure [hPa], raw relative humidity [%], gas [Ohm], Stab Status, run in status, comp temp[°C], comp humidity [%], gas percentage";
+  Serial.println(output);
+}
+
+// Function that is looped forever
+void loop(void)
+{
+  unsigned long time_trigger = millis();
+  if (iaqSensor.run()) { // If new data is available
+    //digitalWrite(LED_BUILTIN, LOW);
+    output = String(time_trigger);
+    output += ", " + String(iaqSensor.iaq);
+    output += ", " + String(iaqSensor.iaqAccuracy);
+    output += ", " + String(iaqSensor.staticIaq);
+    output += ", " + String(iaqSensor.co2Equivalent);
+    output += ", " + String(iaqSensor.breathVocEquivalent);
+    output += ", " + String(iaqSensor.rawTemperature);
+    output += ", " + String(iaqSensor.pressure);
+    output += ", " + String(iaqSensor.rawHumidity);
+    output += ", " + String(iaqSensor.gasResistance);
+    output += ", " + String(iaqSensor.stabStatus);
+    output += ", " + String(iaqSensor.runInStatus);
+    output += ", " + String(iaqSensor.temperature);
+    output += ", " + String(iaqSensor.humidity);
+    output += ", " + String(iaqSensor.gasPercentage);
+    Serial.println(output);
+    //digitalWrite(LED_BUILTIN, HIGH);
+  } else {
+    checkIaqSensorStatus();
+  }
+}
+
+// Helper function definitions
+void checkIaqSensorStatus(void)
+{
+  if (iaqSensor.bsecStatus != BSEC_OK) {
+    if (iaqSensor.bsecStatus < BSEC_OK) {
+      output = "BSEC error code : " + String(iaqSensor.bsecStatus);
+      Serial.println(output);
+      //for (;;)
+        //errLeds(); /* Halt in case of failure */
+    } else {
+      output = "BSEC warning code : " + String(iaqSensor.bsecStatus);
+      Serial.println(output);
+    }
+  }
+
+  if (iaqSensor.bme68xStatus != BME68X_OK) {
+    if (iaqSensor.bme68xStatus < BME68X_OK) {
+      output = "BME68X error code : " + String(iaqSensor.bme68xStatus);
+      Serial.println(output);
+      //for (;;)
+        //errLeds(); /* Halt in case of failure */
+    } else {
+      output = "BME68X warning code : " + String(iaqSensor.bme68xStatus);
+      Serial.println(output);
     }
   }
 }
-//#########################################################################################
-void Clear_Screen(){
-  gfx.fillBuffer(EPD_WHITE);
-  gfx.commit();
-  delay(4000);
-}
 
-
-//#########################################################################################
-void setup() {
-  Serial.begin(115200);
-  gfx.init();
-  gfx.setRotation(1);
-  gfx.fillBuffer(EPD_WHITE);
-}
-
-//#########################################################################################
-void loop() {
-  //Display_QRcode(x,y,element_size,QRcode Size,Error Detection/Correction Level,"string for encoding");
-  gfx.drawString(110,10,"San Vitale");
-  gfx.drawString(20,40,"Temperatura: 40°C | Umidità: troppa");
-  gfx.drawString(5,70,"Qulità dell'aria: pessima | Pressione: alta");
-  
-  Serial.print("ciao");
-
-  Display_QRcode(30,130,2,26,1,"0000001111111122222222223344555556600000011111111222222222233445555566000000111111112222222222334455555660000001111111122222222223344555556600000011111111222222222233445555566");
-  gfx.commit();
-  delay(1000000); // Delay before we do it again
-  Clear_Screen();
-}
+/*void errLeds(void)
+{
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(100);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(100);
+}*/
