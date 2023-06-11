@@ -1,5 +1,8 @@
 name: Build
-on: [push]
+
+on:
+  push:
+
 jobs:
   build:
     name: Build
@@ -17,8 +20,3 @@ jobs:
         run: python -m pip install -U platformio
       - name: Build firmware
         run: platformio run
-      - name: Archive
-        uses: actions/upload-artifact@v3
-        with:
-          name: firmware
-          path: .pio/build/*/firmware.bin
