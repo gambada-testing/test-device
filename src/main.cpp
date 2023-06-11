@@ -57,6 +57,8 @@ void Display_QRcode(int offset_x, int offset_y, int element_size, int QRsize, in
     }
   }
 }
+
+
 //#########################################################################################
 void Clear_Screen(){
   gfx.fillBuffer(EPD_WHITE);
