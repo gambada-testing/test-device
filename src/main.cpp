@@ -1,89 +1,178 @@
+
+
+// Set serial for debug console (to the Serial Monitor, default speed 115200)
+#define SerialMon Serial
+
+// Set serial for AT commands (to the module)
+// Use Hardware Serial on Mega, Leonardo, Micro
+#define SerialAT Serial1
+
+#define TINY_GSM_MODEM_SIM7000
+#define TINY_GSM_RX_BUFFER 1024 // Set RX buffer to 1Kb
+#define SerialAT Serial1
+
+// See all AT commands, if wanted
+// #define DUMP_AT_COMMANDS
+
+// set GSM PIN, if any
+#define GSM_PIN ""
+
+// Your GPRS credentials, if any
+const char apn[]  = "YOUR-APN";     //SET TO YOUR APN
+const char gprsUser[] = "";
+const char gprsPass[] = "";
+
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPI.h>               // Built-in 
-#include "EPD_WaveShare.h"     // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "EPD_WaveShare_42.h"  // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "MiniGrafx.h"         // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "DisplayDriver.h"     // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
-#include "qrcode.h"            // Copyright (c) //https://github.com/ricmoo/qrcode/
+#include <TinyGsmClient.h>
+#include <SPI.h>
+#include <SD.h>
+#include <Ticker.h>
 
-#define SCREEN_WIDTH  400.0    // Set for landscape mode, don't remove the decimal place!
-#define SCREEN_HEIGHT 300.0
-#define BITS_PER_PIXEL 1
-#define EPD_BLACK 0
-#define EPD_WHITE 1
-uint16_t palette[] = { 0, 1 };
+#ifdef DUMP_AT_COMMANDS
+#include <StreamDebugger.h>
+StreamDebugger debugger(SerialAT, SerialMon);
+TinyGsm modem(debugger);
+#else
+TinyGsm modem(SerialAT);
+#endif
 
-// pins_arduino.h, e.g. LOLIN32 D322
-static const uint8_t EPD_BUSY = 34;
-static const uint8_t EPD_SS   = 5;
-static const uint8_t EPD_RST  = 33;
-static const uint8_t EPD_DC   = 32;
-static const uint8_t EPD_SCK  = 18;
-static const uint8_t EPD_MISO = 19; // Master-In Slave-Out not used, as no data from display
-static const uint8_t EPD_MOSI = 23;
+#define uS_TO_S_FACTOR      1000000ULL  // Conversion factor for micro seconds to seconds
+#define TIME_TO_SLEEP       60          // Time ESP32 will go to sleep (in seconds)
 
-EPD_WaveShare42 epd(EPD_SS, EPD_RST, EPD_DC, EPD_BUSY);
-MiniGrafx gfx = MiniGrafx(&epd, BITS_PER_PIXEL, palette);
+#define UART_BAUD           9600
+#define PIN_DTR             25
+#define PIN_TX              27
+#define PIN_RX              26
+#define PWR_PIN             4
 
+#define SD_MISO             2
+#define SD_MOSI             15
+#define SD_SCLK             14
+#define SD_CS               13
+#define LED_PIN             12
 
-QRCode qrcode;
-
-
-//#########################################################################################
-void Display_QRcode(int offset_x, int offset_y, int element_size, int QRsize, int ECC_Mode, const char* Message){
-  // QRcode capacity examples Size-12  65 x 65 LOW      883 535 367 
-  //                                           MEDIUM   691 419 287 
-  //                                           QUARTILE 489 296 203 
-  //                                           HIGH     374 227 155 
-  uint8_t qrcodeData[qrcode_getBufferSize(QRsize)];
-  //ECC_LOW, ECC_MEDIUM, ECC_QUARTILE and ECC_HIGH. Higher levels of error correction sacrifice data capacity, but ensure damaged codes remain readable.
-  if (ECC_Mode%4 == 0) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_LOW, Message);
-  if (ECC_Mode%4 == 1) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_MEDIUM, Message);
-  if (ECC_Mode%4 == 2) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_QUARTILE, Message);
-  if (ECC_Mode%4 == 3) qrcode_initText(&qrcode, qrcodeData, QRsize, ECC_HIGH, Message);
-  for (int y = 0; y < qrcode.size; y++) {
-    for (int x = 0; x < qrcode.size; x++) {
-      if (qrcode_getModule(&qrcode, x, y)) {
-        gfx.setColor(EPD_BLACK);
-        gfx.fillRect(x*element_size+offset_x,y*element_size+offset_y,element_size,element_size);
-        
-      }
-      else 
-      {
-        gfx.setColor(EPD_WHITE);
-        gfx.fillRect(x*element_size+offset_x,y*element_size+offset_y,element_size,element_size);
-      }
+void enableGPS(void)
+{
+    // Set Modem GPS Power Control Pin to HIGH ,turn on GPS power
+    // Only in version 20200415 is there a function to control GPS power
+    modem.sendAT("+CGPIO=0,48,1,1");
+    if (modem.waitResponse(10000L) != 1) {
+        DBG("Set GPS Power HIGH Failed");
     }
-  }
-}
-//#########################################################################################
-void Clear_Screen(){
-  gfx.fillBuffer(EPD_WHITE);
-  gfx.commit();
-  delay(4000);
+    modem.enableGPS();
 }
 
-
-//#########################################################################################
-void setup() {
-  Serial.begin(115200);
-  gfx.init();
-  gfx.setRotation(1);
-  gfx.fillBuffer(EPD_WHITE);
+void disableGPS(void)
+{
+    // Set Modem GPS Power Control Pin to LOW ,turn off GPS power
+    // Only in version 20200415 is there a function to control GPS power
+    modem.sendAT("+CGPIO=0,48,1,0");
+    if (modem.waitResponse(10000L) != 1) {
+        DBG("Set GPS Power LOW Failed");
+    }
+    modem.disableGPS();
 }
 
-//#########################################################################################
-void loop() {
-  //Display_QRcode(x,y,element_size,QRcode Size,Error Detection/Correction Level,"string for encoding");
-  gfx.drawString(110,10,"San Vitale");
-  gfx.drawString(20,40,"Temperatura: 40°C | Umidità: troppa");
-  gfx.drawString(5,70,"Qulità dell'aria: pessima | Pressione: alta");
-  
-  Serial.print("ciao");
+void modemPowerOn()
+{
+    pinMode(PWR_PIN, OUTPUT);
+    digitalWrite(PWR_PIN, HIGH);
+    delay(1000);    //Datasheet Ton mintues = 1S
+    digitalWrite(PWR_PIN, LOW);
+}
 
-  Display_QRcode(30,130,2,26,1,"0000001111111122222222223344555556600000011111111222222222233445555566000000111111112222222222334455555660000001111111122222222223344555556600000011111111222222222233445555566");
-  gfx.commit();
-  delay(1000000); // Delay before we do it again
-  Clear_Screen();
+void modemPowerOff()
+{
+    pinMode(PWR_PIN, OUTPUT);
+    digitalWrite(PWR_PIN, HIGH);
+    delay(1500);    //Datasheet Ton mintues = 1.2S
+    digitalWrite(PWR_PIN, LOW);
+}
+
+
+void modemRestart()
+{
+    modemPowerOff();
+    delay(1000);
+    modemPowerOn();
+}
+
+void setup()
+{
+    // Set console baud rate
+    SerialMon.begin(115200);
+
+    delay(10);
+
+    // Set LED OFF
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
+
+    modemPowerOn();
+
+    SerialAT.begin(UART_BAUD, SERIAL_8N1, PIN_RX, PIN_TX);
+
+    Serial.println("/**********************************************************/");
+    Serial.println("To initialize the network test, please make sure your GPS");
+    Serial.println("antenna has been connected to the GPS port on the board.");
+    Serial.println("/**********************************************************/\n\n");
+
+    delay(10000);
+}
+
+void loop()
+{
+    if (!modem.testAT()) {
+        Serial.println("Failed to restart modem, attempting to continue without restarting");
+        modemRestart();
+        return;
+    }
+
+    Serial.println("Start positioning . Make sure to locate outdoors.");
+    Serial.println("The blue indicator light flashes to indicate positioning.");
+
+    enableGPS();
+
+    float lat, lon, speed;
+    int alt, viewsat, usedsat, year, month, day, hour, minute, second;
+    while (1) {
+        if (modem.getGPS(&lat, &lon, &speed, &alt, &viewsat, &usedsat)) {
+            Serial.println("The location has been locked, the latitude and longitude are:");
+            Serial.print("latitude:"); Serial.println(lat);
+            Serial.print("longitude:"); Serial.println(lon);
+            Serial.print("speed:"); Serial.println(speed);
+            Serial.print("alt:"); Serial.println(alt);
+            Serial.print("viewsat:"); Serial.println(viewsat);
+            Serial.print("usedsat:"); Serial.println(usedsat);
+
+            modem.getGPSTime(&year, &month, &day, &hour, &minute, &second);
+            Serial.print("year:"); Serial.println(year);
+            Serial.print("month:"); Serial.println(month);
+            Serial.print("day:"); Serial.println(day);
+            Serial.print("hour:"); Serial.println(hour);
+            Serial.print("minute:"); Serial.println(minute);
+            Serial.print("second:"); Serial.println(second);
+
+            break;
+        }
+        digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+        delay(2000);
+    }
+
+    disableGPS();
+
+    Serial.println("/**********************************************************/");
+    Serial.println("After the network test is complete, please enter the  ");
+    Serial.println("AT command in the serial terminal.");
+    Serial.println("/**********************************************************/\n\n");
+
+    while (1) {
+        while (SerialAT.available()) {
+            SerialMon.write(SerialAT.read());
+        }
+        while (SerialMon.available()) {
+            SerialAT.write(SerialMon.read());
+        }
+    }
 }
