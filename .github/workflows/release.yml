@@ -29,4 +29,11 @@ jobs:
         with:
           name: firmware
           path: .pio/build/*/firmware.bin
-     
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: test
+          files: firmware/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
