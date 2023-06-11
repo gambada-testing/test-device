@@ -24,11 +24,6 @@ jobs:
       - name: Build firmware
         run: platformio run
         id: version
-      - name: Archive
-        uses: actions/upload-artifact@v3
-        with:
-          name: firmware
-          path: .pio/build/*/firmware.bin 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
