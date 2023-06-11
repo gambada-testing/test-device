@@ -29,6 +29,7 @@ jobs:
         with:
           name: firmware
           path: .pio/build/*/firmware.bin
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
