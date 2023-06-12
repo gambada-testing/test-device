@@ -30,7 +30,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: false
       - name: Rename output file
-        if: state == "release"   
         run: mv .pio/build/*/firmware.bin .pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
           FILENAME=.pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
           echo $FILENAME
