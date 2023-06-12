@@ -26,7 +26,6 @@ static const uint8_t EPD_MOSI = 23;
 EPD_WaveShare42 epd(EPD_SS, EPD_RST, EPD_DC, EPD_BUSY);
 MiniGrafx gfx = MiniGrafx(&epd, BITS_PER_PIXEL, palette);
 
-
 QRCode qrcode;
 
 //#########################################################################################
