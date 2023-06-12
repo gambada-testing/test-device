@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  build_release:
-    name: Build Release
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,16 +23,23 @@ jobs:
       - name: Build firmware
         run: platformio run
         id: version
-      - name: Github Tag Bump
+      - name: Github tag bump
         id: tag_version
         uses: anothrNick/github-tag-action@1.66.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: false      
+          WITH_V: false
+      - name: Rename output file
+        run: mv .pio/build/esp-wrover-kit/firmware.bin .pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+      - name: Assign file name to env
+        run: |
+          FILENAME=.pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+          echo $FILENAME
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
-          files: .pio/build/*/firmware.bin
+          files: ${{ env.FILENAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
