@@ -31,7 +31,7 @@ jobs:
           WITH_V: false
       - name: Rename output file
         run: mv .pio/build/esp-wrover-kit/firmware.bin .pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
-      - name: Assign name to env
+      - name: Assign file name to env
         run: |
           FILENAME=.pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
           echo $FILENAME
