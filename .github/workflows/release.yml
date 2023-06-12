@@ -31,6 +31,8 @@ jobs:
           WITH_V: false
       - name: Rename output file
         run: mv .pio/build/*/firmware.bin .pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+      - name: Assign name to env
+        run: |
           FILENAME=.pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
           echo $FILENAME
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
