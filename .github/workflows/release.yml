@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   build_release:
@@ -26,6 +25,7 @@ jobs:
         id: version
       - name: Release
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           tag_name: test
           files: .pio/build/*/firmware.bin
