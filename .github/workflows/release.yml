@@ -23,16 +23,22 @@ jobs:
       - name: Build firmware
         run: platformio run
         id: version
-      - name: Github Tag Bump
+      - name: Github tag bump
         id: tag_version
         uses: anothrNick/github-tag-action@1.66.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: false      
+          WITH_V: false
+      - name: Rename output file
+        if: state == "release"   
+        run: mv .pio/build/*/firmware.bin .pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+          FILENAME=.pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+          echo $FILENAME
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
-          files: .pio/build/*/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+          files: ${{ env.FILENAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
