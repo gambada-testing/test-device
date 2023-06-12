@@ -7,6 +7,8 @@
 #include "DisplayDriver.h"     // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
 #include "qrcode.h"            // Copyright (c) //https://github.com/ricmoo/qrcode/
 
+
+
 #define SCREEN_WIDTH  400.0    // Set for landscape mode, don't remove the decimal place!
 #define SCREEN_HEIGHT 300.0
 #define BITS_PER_PIXEL 1
