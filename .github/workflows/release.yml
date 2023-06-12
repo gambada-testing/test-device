@@ -23,11 +23,16 @@ jobs:
       - name: Build firmware
         run: platformio run
         id: version
+      - name: Github Tag Bump
+        id: tag_version
+        uses: anothrNick/github-tag-action@1.66.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: false      
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: test
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
           files: .pio/build/*/firmware.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
