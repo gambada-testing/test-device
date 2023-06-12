@@ -29,7 +29,6 @@ MiniGrafx gfx = MiniGrafx(&epd, BITS_PER_PIXEL, palette);
 
 QRCode qrcode;
 
-
 //#########################################################################################
 void Display_QRcode(int offset_x, int offset_y, int element_size, int QRsize, int ECC_Mode, const char* Message){
   // QRcode capacity examples Size-12  65 x 65 LOW      883 535 367 
@@ -58,14 +57,12 @@ void Display_QRcode(int offset_x, int offset_y, int element_size, int QRsize, in
   }
 }
 
-
 //#########################################################################################
 void Clear_Screen(){
   gfx.fillBuffer(EPD_WHITE);
   gfx.commit();
   delay(4000);
 }
-
 
 //#########################################################################################
 void setup() {
