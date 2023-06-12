@@ -1,4 +1,4 @@
-name: Build Release
+name: Release
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  build_release:
-    name: Build Release
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
