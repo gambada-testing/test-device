@@ -129,6 +129,5 @@ void loop() {
 
   gfx.commit();
   delay(100000);  // Delay before we do it again
-  
   Clear_Screen();
 }
