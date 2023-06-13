@@ -71,7 +71,7 @@ void Clear_Screen()
 {
   gfx.fillBuffer(EPD_WHITE);
   gfx.commit();
-  delay(4000);
+  delay(2000);
 }
 
 int vref = 1100;
