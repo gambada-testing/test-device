@@ -44,6 +44,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.bump-tag.outputs.new_tag }}
-          files: firmware-${{ needs.bump-tag.outputs.new_tag }}
+          files: firmware-${{ needs.bump-tag.outputs.new_tag }}.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
