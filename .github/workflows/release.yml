@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  release:
-    name: Release
+  build-code:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -22,7 +22,19 @@ jobs:
         run: python -m pip install -U platformio
       - name: Build firmware
         run: platformio run
-        id: version
+      - name: Rename output file
+        run: mv .pio/build/esp-wrover-kit/firmware.bin .pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+      - name: Assign file name to env
+        run: |
+          FILENAME=.pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
+          echo $FILENAME
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+  push-tag:
+    name: Push Tag
+    needs: build-code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Github tag bump
         id: tag_version
         uses: anothrNick/github-tag-action@1.66.0
@@ -33,13 +45,12 @@ jobs:
           MAJOR_STRING_TOKEN: "major"
           MINOR_STRING_TOKEN: "feat"
           PATCH_STRING_TOKEN: "fix"
-      - name: Rename output file
-        run: mv .pio/build/esp-wrover-kit/firmware.bin .pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
-      - name: Assign file name to env
-        run: |
-          FILENAME=.pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
-          echo $FILENAME
-          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+  release:
+    name: Release
+    needs: [build-code, push-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
