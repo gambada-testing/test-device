@@ -7,7 +7,7 @@ on:
 
 jobs:
   call-build:
-    name: Build
+    name: Call Build
     uses: ./.github/workflows/build.yml
     
   bump-tag:
