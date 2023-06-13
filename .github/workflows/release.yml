@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-code:
+  build:
     name: Build
     runs-on: ubuntu-latest
     steps:
@@ -29,10 +29,12 @@ jobs:
           FILENAME=.pio/build/esp-wrover-kit/firmware-${{ steps.tag_version.outputs.new_tag }}.bin
           echo $FILENAME
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
-  push-tag:
-    name: Push Tag
-    needs: build-code
+  bump-tag:
+    name: Bump Tag
+    needs: build
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v3
       - name: Github tag bump
@@ -47,14 +49,14 @@ jobs:
           PATCH_STRING_TOKEN: "fix"
   release:
     name: Release
-    needs: [build-code, push-tag]
+    needs: [build, bump-tag]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          tag_name: ${{ needs.bump-tag.outputs.new_tag }}
           files: ${{ env.FILENAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
