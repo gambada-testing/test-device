@@ -103,6 +103,8 @@ void loop() {
   float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
   String voltage = "Voltage :" + String(battery_voltage) + "V\n";
 
+
+
   // When connecting USB, the battery detection will return 0,
   // because the adc detection circuit is disconnected when connecting USB
   Serial.println(voltage);
