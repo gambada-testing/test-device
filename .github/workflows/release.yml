@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: firmware.bin
+          name: firmware
           
       - name: Rename firmware file
         run: mv firmware.bin firmware-${{ needs.bump-tag.outputs.new_tag }}.bin
@@ -44,6 +44,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.bump-tag.outputs.new_tag }}
-          files: firmware-${{ needs.bump-tag.outputs.new_tag }}.bin
+          files: firmware-${{ needs.bump-tag.outputs.new_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
