@@ -21,6 +21,7 @@ uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 #define EPD_WHITE 1
 uint16_t palette[] = {0, 1};
 
+
 #define ADC_PIN 35
 
 // pins_arduino.h, e.g. LOLIN32 D322
