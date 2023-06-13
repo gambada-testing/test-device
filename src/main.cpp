@@ -22,6 +22,7 @@ uint16_t palette[] = {0, 1};
 
 #define ADC_PIN 35
 
+
 // pins_arduino.h, e.g. LOLIN32 D322
 static const uint8_t EPD_BUSY = 34;
 static const uint8_t EPD_SS = 5;
