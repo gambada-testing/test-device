@@ -1,7 +1,7 @@
 name: Release
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
@@ -26,6 +26,7 @@ jobs:
           MAJOR_STRING_TOKEN: "major"
           MINOR_STRING_TOKEN: "feat"
           PATCH_STRING_TOKEN: "fix"
+          BRANCH_HISTORY: last
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
           
