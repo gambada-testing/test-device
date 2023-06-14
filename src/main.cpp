@@ -10,6 +10,7 @@
 #include "qrcodegen.h"
 
 
+
 // Text data
 uint8_t qr0[qrcodegen_BUFFER_LEN_MAX];
 uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
