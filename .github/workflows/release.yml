@@ -20,7 +20,6 @@ jobs:
         id: tag_version
         uses: anothrNick/github-tag-action@1.66.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: false
           DEFAULT_BUMP: patch
           MAJOR_STRING_TOKEN: "major"
@@ -46,5 +45,3 @@ jobs:
         with:
           tag_name: ${{ needs.bump-tag.outputs.new_tag }}
           files: firmware-${{ needs.bump-tag.outputs.new_tag }}.bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
