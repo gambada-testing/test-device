@@ -9,7 +9,6 @@
 #include "MiniGrafx.h"  // Copyright (c) 2017 by Daniel Eichhorn https://github.com/ThingPulse/minigrafx
 #include "qrcodegen.h"
 
-
 // Text data
 uint8_t qr0[qrcodegen_BUFFER_LEN_MAX];
 uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
