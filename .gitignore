@@ -6,3 +6,5 @@
 .vscode/*
 .pio
 .pio/*
+*.bin
+unpacked_fs/
