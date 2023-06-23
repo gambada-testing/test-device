@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ESP32Time.h>
 
 TaskHandle_t MainTask;
 TaskHandle_t UpdateDataTask;
@@ -15,6 +16,8 @@ TaskHandle_t UpdateQRTask;
 
 static volatile uint8_t dataTaskStatus = STATUS_DEAD;
 static volatile uint8_t qrTaskStatus = STATUS_DEAD;
+
+ESP32Time rtc;
 
 void print_wakeup_reason() {
     esp_sleep_wakeup_cause_t wakeup_reason;
@@ -40,6 +43,12 @@ void print_wakeup_reason() {
         default:
             Serial.printf("Wakeup was not caused by deep sleep: %d\n",
                           wakeup_reason);
+
+            // init all
+
+            rtc.setTime(00, 19, 11, 23, 6, 2023);
+
+            delay(100);
             esp_deep_sleep_start();
             break;
     }
@@ -55,9 +64,11 @@ void updateData(void* parameter) {
         /*Serial.print("DEAD ENV  core: ");
         Serial.print(xPortGetCoreID());*/
         Serial.println();
-        Serial.println("UPDATE ENV DATA");
+        Serial.println("ENV DATA UPDATE");
 
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        Serial.println(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 
     dataTaskStatus = STATUS_DEAD;
@@ -76,7 +87,8 @@ void updateQR(void* parameter) {
         Serial.print(xPortGetCoreID());
         Serial.println();
         Serial.println("QR CODE UPDATE: " + qrTaskStatus);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
     qrTaskStatus = STATUS_DEAD;
     Serial.println("DEAD QR CODE");
@@ -116,6 +128,8 @@ void setup() {
 
     delay(100);
     Serial.println("Sleep");
+    Serial.flush();
+
     esp_deep_sleep_start();
 }
 
