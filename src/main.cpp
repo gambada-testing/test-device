@@ -45,13 +45,17 @@ MiniGrafx gfx = MiniGrafx(&epd, BITS_PER_PIXEL, palette);
 int vref = 1100;
 
 int64_t espTime = 0;
+RTC_DATA_ATTR int64_t taskExeTime = 0;
 RTC_DATA_ATTR int64_t previousEspTime = 0;
+int64_t previousExeTime = 0;
+
+RTC_DATA_ATTR int64_t timerWakeupRemaining = 0;
 
 #define LED 12
 
-#define uS_TO_S_FACTOR \
-    1000000              /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP 10 /* Time ESP32 will go to sleep (in seconds) */
+#define mS_TO_S_FACTOR 1000
+#define uS_TO_S_FACTOR 1000000
+#define TIME_TO_SLEEP 15 /* Time ESP32 will go to sleep (in seconds) */
 
 #define STATUS_DEAD 0
 #define STATUS_ALIVE 1
@@ -161,6 +165,12 @@ void addDataToFile(const char* filename) {
     file.close();
 }
 
+int64_t getEpochMillis() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000LL + (tv.tv_usec / 1000LL));
+}
+
 void print_wakeup_reason() {
     esp_sleep_wakeup_cause_t wakeup_reason;
 
@@ -194,7 +204,11 @@ void print_wakeup_reason() {
                 const char* filename = "/env_data.json";
                 initDataToFile(filename);
             }
-            previousEspTime = esp_timer_get_time();
+            previousEspTime = getEpochMillis();
+
+            // Serial.println(previousEspTime);
+
+            timerWakeupRemaining = TIME_TO_SLEEP * mS_TO_S_FACTOR;
 
             delay(100);
             esp_deep_sleep_start();
@@ -349,7 +363,7 @@ void setup() {
     pinMode(LED, OUTPUT);
     pinMode(GPIO_NUM_27, INPUT);
 
-    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    esp_sleep_enable_timer_wakeup(timerWakeupRemaining * mS_TO_S_FACTOR);
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_27, 1);
 
     dataTaskStatus = STATUS_DEAD;
@@ -358,6 +372,8 @@ void setup() {
     updateDataStatus = 0;
 
     print_wakeup_reason();
+
+    previousExeTime = getEpochMillis();
 
     xTaskCreatePinnedToCore(updateData, "updateDataTask", 10000, NULL, 10,
                             &UpdateDataTask, 0);
@@ -371,36 +387,52 @@ void setup() {
     // Attesa che i task nascano
     delay(500);
 
+    Serial.println("-----------------------------------------------");
+
     // Attesa che i task muoiano
     while (qrTaskStatus == STATUS_ALIVE || dataTaskStatus == STATUS_ALIVE) {
-        espTime = esp_timer_get_time();
+        espTime = getEpochMillis();
 
-        if (qrTaskStatus == STATUS_ALIVE &&
-            ((espTime - previousEspTime) >
-             (TIME_TO_SLEEP * uS_TO_S_FACTOR) - (1 * uS_TO_S_FACTOR)) &&
-            ((espTime - previousEspTime) <
-             ((TIME_TO_SLEEP * uS_TO_S_FACTOR) + (1 * uS_TO_S_FACTOR)))) {
-            updateDataStatus = 1;
-            Serial.println("@ UPDATE DATA STATUS");
+        /*Serial.println("STATO QR: " + String(qrTaskStatus) + " | espTime (" +
+                       espTime + ") - previousTime(" + previousEspTime + ")" +
+                       " | TEMPO: " + (espTime - previousEspTime));
+        delay(100);*/
+
+        if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 &&
+            updateDataStatus == 0) {
+            if (timerWakeupRemaining - taskExeTime <= 0) {
+                updateDataStatus = 1;
+                //  Assicuro che il task veda lo status nuovo
+                delay(100);
+            }
+        }
+
+    }
+
+    taskExeTime = getEpochMillis() - previousExeTime;
+    Serial.println("@ EXEC TASK TIME: " +
+                   String((float)taskExeTime / mS_TO_S_FACTOR));
+
+    // new timer wakeup removing task execution time
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER ||
+        updateDataStatus == 1) {
+        timerWakeupRemaining = TIME_TO_SLEEP * mS_TO_S_FACTOR - taskExeTime;
+    } else {
+        if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+            timerWakeupRemaining -= taskExeTime;
         }
     }
 
-    // update wake time
-    if ((espTime - previousEspTime) < (TIME_TO_SLEEP * uS_TO_S_FACTOR) &&
-        updateDataStatus == 0) {
-        uint64_t tempo =
-            (TIME_TO_SLEEP * uS_TO_S_FACTOR) - (espTime - previousEspTime);
+    esp_sleep_enable_timer_wakeup(timerWakeupRemaining * mS_TO_S_FACTOR);
 
-        esp_sleep_enable_timer_wakeup(tempo);
-
-        Serial.println("* UPDATE WAKE TIME TO: " + String(tempo/uS_TO_S_FACTOR));
-    }
+    Serial.println("* UPDATE WAKE TIME TO: " +
+                   String((float)timerWakeupRemaining / mS_TO_S_FACTOR));
 
     delay(100);
     Serial.println("--- SLEEP ---");
     Serial.flush();
 
-    previousEspTime = esp_timer_get_time();
+    previousEspTime = getEpochMillis();
 
     esp_deep_sleep_start();
 }
