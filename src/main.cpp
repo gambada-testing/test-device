@@ -56,7 +56,7 @@ RTC_DATA_ATTR int64_t timerWakeupRemaining = 0;
 
 #define mS_TO_S_FACTOR 1000
 #define uS_TO_S_FACTOR 1000000
-#define TIME_TO_SLEEP 10 /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 10 
 
 #define STATUS_DEAD 0
 #define STATUS_ALIVE 1
@@ -98,7 +98,7 @@ String readDataFromFile(const char* filename) {
     String strQr;
     if (file) {
         // Deserialize the JSON data
-        StaticJsonDocument<2048> doc;
+        DynamicJsonDocument doc(10000);
         DeserializationError error = deserializeJson(doc, file);
         strQr += doc["id"].as<String>();
         strQr += "|";
@@ -130,8 +130,11 @@ String readDataFromFile(const char* filename) {
 void initDataToFile(const char* filename) {
     File file = SPIFFS.open(filename, FILE_WRITE);
     DynamicJsonDocument doc(10000);
-
-    doc["id"] = "34234234234234234234465";
+    String idStr;
+    for (int i = 0; i < 16; i++) {
+        idStr += ESPTrueRandom.random(10);
+    }
+    doc["id"] = idStr;
     doc["version"] = 1.2;
 
     JsonObject coordinates = doc.createNestedObject("coordinates");
