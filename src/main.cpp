@@ -4,6 +4,7 @@
 #include "EPD_WaveShare.h"
 #include "EPD_WaveShare_42.h"
 #include "ESP32Time.h"
+#include "ESPTrueRandom.h"
 #include "MiniGrafx.h"
 #include "SPIFFS.h"
 #include "bsec.h"
@@ -55,7 +56,7 @@ RTC_DATA_ATTR int64_t timerWakeupRemaining = 0;
 
 #define mS_TO_S_FACTOR 1000
 #define uS_TO_S_FACTOR 1000000
-#define TIME_TO_SLEEP 15 /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 10 /* Time ESP32 will go to sleep (in seconds) */
 
 #define STATUS_DEAD 0
 #define STATUS_ALIVE 1
@@ -90,17 +91,40 @@ void listAllFiles() {
     file.close();
 }
 
-void readDataFromFile(const char* filename) {
+String readDataFromFile(const char* filename) {
     // Read JSON data from a file
     File file = SPIFFS.open(filename);
+    JsonArray jArray;
+    String strQr;
     if (file) {
         // Deserialize the JSON data
         StaticJsonDocument<2048> doc;
         DeserializationError error = deserializeJson(doc, file);
-        double data_str = doc["data_out"];
-        Serial.println(data_str);
+        strQr += doc["id"].as<String>();
+        strQr += "|";
+        jArray = doc["env_data"].as<JsonArray>();
+
+        for (int i = 0; i < 16; i++) {
+            strQr += ESPTrueRandom.random(10);
+        }
+        strQr += "|";
+
+        for (JsonObject a : jArray) {
+            strQr += a["timestamp"].as<String>();
+            strQr += "|";
+            strQr += a["temperature"].as<int>();
+            strQr += "|";
+            strQr += a["humidity"].as<int>();
+            strQr += "|";
+            strQr += a["pressure"].as<int>();
+            strQr += "|";
+            strQr += a["air_quality"].as<int>();
+            strQr += "|";
+        }
     }
     file.close();
+
+    return strQr;
 }
 
 void initDataToFile(const char* filename) {
@@ -291,10 +315,11 @@ void updateQR(void* parameter) {
                                " hPa");
             //}
 
+            const char* filename = "/env_data.json";
+
             bool ok = qrcodegen_encodeText(
-                "012345678901234567890123456789012345678901234567890123456789",
-                tempBuffer, qr0, qrcodegen_Ecc_MEDIUM, 32, 32,
-                qrcodegen_Mask_AUTO, true);
+                readDataFromFile(filename).c_str(), tempBuffer, qr0,
+                qrcodegen_Ecc_MEDIUM, 32, 32, qrcodegen_Mask_AUTO, true);
 
             int pixel = 2;
             int offsetX = 5;
@@ -406,7 +431,6 @@ void setup() {
                 delay(100);
             }
         }
-
     }
 
     taskExeTime = getEpochMillis() - previousExeTime;
@@ -437,4 +461,4 @@ void setup() {
     esp_deep_sleep_start();
 }
 
-void loop() { vTaskDelete(NULL); }
+void loop() {}
